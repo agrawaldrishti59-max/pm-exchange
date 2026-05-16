@@ -12,13 +12,12 @@ export default function AddSlots() {
 
   useEffect(() => {
   async function getSession() {
-    // Wait for session to be available
     let attempts = 0;
     while (attempts < 10) {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) {
-        setEmail(session.user.email);
-        return;
+        const { data } = await supabase.from("members").select("id").eq("email", session.user.email).single();
+        if (data) { setMemberId(data.id); return; }
       }
       await new Promise(r => setTimeout(r, 500));
       attempts++;
