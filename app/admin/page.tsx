@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
-type Member = { id: string; name: string; email: string; company: string; role: string; linkedin_url: string; credits: number; status: string; };
+type Member = { id: string; name: string; email: string; company: string; role: string; linkedin_url: string; credits: number; status: string; bio: string; years_experience: number; };
 
 export default function AdminPage() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function load() {
-    const { supabase } = await import("@/lib/supabase");
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || session.user.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) { router.replace("/join"); return; }
       const { data } = await supabase.from("members").select("*").order("created_at", { ascending: false });
@@ -24,17 +24,19 @@ export default function AdminPage() {
 
   async function approve(m: Member) {
     setActing(m.id);
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     await supabase.from("members").update({ status: "approved", credits: 2 }).eq("id", m.id);
+    // Notify member
+    await supabase.from("notifications").insert([{
+      member_id: m.id,
+      title: "You're approved! 🎉",
+      body: "Welcome to PM Exchange! You've been given 2 credits to get started."
+    }]);
     setMembers(prev => prev.map(x => x.id === m.id ? { ...x, status: "approved", credits: 2 } : x));
     setActing(null);
   }
 
   async function reject(id: string) {
     setActing(id);
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     await supabase.from("members").update({ status: "rejected" }).eq("id", id);
     setMembers(prev => prev.map(x => x.id === id ? { ...x, status: "rejected" } : x));
     setActing(null);
@@ -45,8 +47,6 @@ export default function AdminPage() {
     const member = members.find(m => m.id === id);
     if (!member) return;
     const newCredits = Math.max(0, member.credits + delta);
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     await supabase.from("members").update({ credits: newCredits }).eq("id", id);
     setMembers(prev => prev.map(x => x.id === id ? { ...x, credits: newCredits } : x));
     setActing(null);
@@ -69,17 +69,17 @@ export default function AdminPage() {
           ))}
         </div>
       </div>
-
       <div style={{ flex: 1, padding: 16, overflowY: "auto" }}>
         {loading && <div style={{ textAlign: "center", padding: 40, color: "#999" }}>Loading…</div>}
         {!loading && filtered.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#999" }}>Nothing here</div>}
         {filtered.map(m => (
           <div key={m.id} style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14, marginBottom: 8 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
               <div>
                 <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{m.name}</p>
-                <p style={{ fontSize: 12, color: "#888", margin: "2px 0" }}>{[m.role, m.company].filter(Boolean).join(" @ ")}</p>
+                <p style={{ fontSize: 12, color: "#888", margin: "2px 0" }}>{[m.role, m.company].filter(Boolean).join(" @ ")}{m.years_experience ? ` · ${m.years_experience}y` : ""}</p>
                 <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{m.email}</p>
+                {m.bio && <p style={{ fontSize: 12, color: "#666", margin: "4px 0 0", fontStyle: "italic" }}>"{m.bio}"</p>}
               </div>
               <span style={{ background: "#FAEEDA", color: "#633806", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>🪙 {m.credits}</span>
             </div>
@@ -95,11 +95,9 @@ export default function AdminPage() {
             {tab === "approved" && (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, color: "#999" }}>Credits:</span>
-                <button onClick={() => adjustCredits(m.id, -1)} disabled={acting === m.id || m.credits === 0}
-                  style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #ddd", background: "#fff", fontSize: 16, cursor: "pointer" }}>−</button>
+                <button onClick={() => adjustCredits(m.id, -1)} disabled={acting === m.id || m.credits === 0} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #ddd", background: "#fff", fontSize: 16, cursor: "pointer" }}>−</button>
                 <span style={{ fontSize: 14, fontWeight: 600, minWidth: 20, textAlign: "center" }}>{m.credits}</span>
-                <button onClick={() => adjustCredits(m.id, 1)} disabled={acting === m.id}
-                  style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #ddd", background: "#fff", fontSize: 16, cursor: "pointer" }}>+</button>
+                <button onClick={() => adjustCredits(m.id, 1)} disabled={acting === m.id} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid #ddd", background: "#fff", fontSize: 16, cursor: "pointer" }}>+</button>
               </div>
             )}
           </div>

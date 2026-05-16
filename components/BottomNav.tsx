@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/community", label: "Community", icon: "👥" },
+  { href: "/explore", label: "Explore", icon: "🔍" },
   { href: "/sessions", label: "Sessions", icon: "📅" },
   { href: "/profile", label: "Profile", icon: "👤" },
 ];
@@ -11,7 +11,7 @@ const links = [
 export default function BottomNav() {
   const path = usePathname();
   return (
-    <nav style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #eee", display: "flex" }}>
+    <nav style={{ position: "sticky", bottom: 0, background: "#fff", borderTop: "1px solid #eee", display: "flex", zIndex: 10 }}>
       {links.map(l => (
         <Link key={l.href} href={l.href} style={{
           flex: 1, display: "flex", flexDirection: "column", alignItems: "center",

@@ -1,6 +1,11 @@
 -- Run this in Supabase SQL Editor
+-- Drop existing tables first
+drop table if exists sessions cascade;
+drop table if exists slots cascade;
+drop table if exists members cascade;
 
-create table if not exists members (
+-- MEMBERS
+create table members (
   id uuid primary key default gen_random_uuid(),
   email text unique not null,
   name text,
@@ -8,30 +13,54 @@ create table if not exists members (
   company text,
   role text,
   whatsapp text,
+  bio text,
+  years_experience integer,
+  goal text,
+  avatar_url text,
   credits integer default 0,
   status text default 'pending',
   created_at timestamptz default now()
 );
 
-create table if not exists sessions (
+-- SLOTS
+create table slots (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid references members(id) on delete cascade not null,
+  datetime timestamptz not null,
+  is_booked boolean default false,
+  created_at timestamptz default now()
+);
+
+-- SESSIONS
+create table sessions (
   id uuid primary key default gen_random_uuid(),
   booker_id uuid references members(id) not null,
   host_id uuid references members(id) not null,
-  status text default 'pending',
+  slot_id uuid references slots(id),
+  status text default 'pending', -- pending | accepted | completed | cancelled
   meet_link text,
   note text,
   created_at timestamptz default now()
 );
 
+-- NOTIFICATIONS
+create table notifications (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid references members(id) on delete cascade not null,
+  title text not null,
+  body text not null,
+  is_read boolean default false,
+  created_at timestamptz default now()
+);
+
+-- Enable RLS
 alter table members enable row level security;
+alter table slots enable row level security;
 alter table sessions enable row level security;
+alter table notifications enable row level security;
 
--- Members policies
-create policy "Anyone can insert member" on members for insert with check (true);
-create policy "Anyone can view approved members" on members for select using (true);
-create policy "Members can update own record" on members for update using (true);
-
--- Sessions policies
-create policy "Anyone can insert session" on sessions for insert with check (true);
-create policy "Anyone can view sessions" on sessions for select using (true);
-create policy "Anyone can update session" on sessions for update using (true);
+-- Open policies for now
+create policy "open_members" on members for all using (true) with check (true);
+create policy "open_slots" on slots for all using (true) with check (true);
+create policy "open_sessions" on sessions for all using (true) with check (true);
+create policy "open_notifications" on notifications for all using (true) with check (true);
