@@ -13,8 +13,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     async function load() {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+    const { supabase } = await import("@/lib/supabase");
       const { data: { session } } = await supabase.auth.getSession();
       if (!session || session.user.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) { router.replace("/join"); return; }
       const { data } = await supabase.from("members").select("*").order("created_at", { ascending: false });
