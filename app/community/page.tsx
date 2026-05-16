@@ -23,8 +23,7 @@ export default function CommunityPage() {
 
   useEffect(() => {
     async function load() {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+     const { supabase } = await import("@/lib/supabase");
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/join"); return; }
       const { data } = await supabase.from("members").select("*").eq("status", "approved").order("name");
