@@ -13,11 +13,7 @@ export default function CompleteProfile() {
 
   useEffect(() => {
     async function getEmail() {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+      const { supabase } = await import("@/lib/supabase");
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email) setEmail(session.user.email);
       else router.replace("/join");
