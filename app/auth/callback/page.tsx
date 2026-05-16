@@ -8,7 +8,12 @@ export default function AuthCallbackPage() {
   const [msg, setMsg] = useState("Signing you in…");
 
   useEffect(() => {
+    let done = false;
+    let timer: any;
+
     async function redirect(email: string, name: string, avatar_url: string) {
+      done = true;
+      if (timer) clearTimeout(timer);
       setMsg("Checking your profile…");
       const { data: member } = await supabase
         .from("members").select("status, linkedin_url, goal").eq("email", email).single();
@@ -23,7 +28,7 @@ export default function AuthCallbackPage() {
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session) {
+      if (event === "SIGNED_IN" && session && !done) {
         subscription.unsubscribe();
         await redirect(
           session.user.email!,
@@ -33,12 +38,17 @@ export default function AuthCallbackPage() {
       }
     });
 
-    setTimeout(() => {
-      setMsg("Taking too long — try again");
-      setTimeout(() => router.replace("/join"), 2000);
+    timer = setTimeout(() => {
+      if (!done) {
+        setMsg("Taking too long — try again");
+        setTimeout(() => router.replace("/join"), 2000);
+      }
     }, 10000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      if (timer) clearTimeout(timer);
+    };
   }, [router]);
 
   return (
