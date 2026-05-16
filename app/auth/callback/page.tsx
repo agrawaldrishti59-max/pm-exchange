@@ -7,12 +7,8 @@ export default function AuthCallback() {
   const [msg, setMsg] = useState("Signing you in…");
 
   useEffect(() => {
-    async function handle() {
-      const { createClient } = await import("@supabase/supabase-js");
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
+   async function handle() {
+  const { supabase } = await import("@/lib/supabase");
 
       // onAuthStateChange catches the token from the URL hash automatically
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
