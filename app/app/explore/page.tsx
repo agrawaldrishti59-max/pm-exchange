@@ -48,7 +48,7 @@ export default function ExplorePage() {
 
       const [{ data: allMembers }, { data: myData }] = await Promise.all([
         supabase.from("members").select("*").order("name"),
-        supabase.from("members").select("*").eq("email", session.user.email).single(),
+        supabase.from("members").select("*").eq("email", session.user.email).maybeSingle(),
       ]);
 
       setMembers(allMembers || []);

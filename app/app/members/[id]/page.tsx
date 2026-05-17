@@ -40,7 +40,7 @@ export default function MemberPage() {
 
       const [{ data: m }, { data: myData }] = await Promise.all([
         supabase.from("members").select("*").eq("id", params.id).single(),
-        supabase.from("members").select("*").eq("email", session.user.email).single(),
+        supabase.from("members").select("*").eq("email", session.user.email).maybeSingle(),
       ]);
       setMember(m); setMe(myData);
 

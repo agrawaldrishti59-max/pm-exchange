@@ -24,7 +24,7 @@ export default function NotificationsPage() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/join"); return; }
-      const { data: me } = await supabase.from("members").select("id").eq("email", session.user.email).single();
+      const { data: me } = await supabase.from("members").select("id").eq("email", session.user.email).maybeSingle();
       if (!me) return;
       const { data } = await supabase.from("notifications").select("*").eq("member_id", me.id).order("created_at", { ascending: false });
       setNotifs(data || []);

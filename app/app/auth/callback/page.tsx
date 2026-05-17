@@ -16,16 +16,23 @@ export default function AuthCallback() {
       done = true;
       if (timer) clearTimeout(timer);
       setMsg("Checking your profile…");
-      const { data: member } = await supabase
-        .from("members").select("status, linkedin_url, goal").eq("email", email).single();
-      if (!member) {
-        await supabase.from("members").insert([{ email, name, avatar_url, status: "pending", credits: 0 }]);
-        router.replace("/complete-profile");
-        return;
+      try {
+        const { data: member, error } = await supabase
+          .from("members").select("status, linkedin_url, goal").eq("email", email).maybeSingle();
+        if (error) throw error;
+        if (!member) {
+          await supabase.from("members").insert([{ email, name, avatar_url, status: "pending", credits: 0 }]);
+          router.replace("/complete-profile");
+          return;
+        }
+        if (!member.linkedin_url) { router.replace("/complete-profile"); return; }
+        if (!member.goal) { router.replace("/onboarding-goal"); return; }
+        router.replace("/explore");
+      } catch (e) {
+        // Never hang silently — send the user somewhere actionable
+        setMsg("Could not load your profile. Redirecting…");
+        setTimeout(() => router.replace("/complete-profile"), 1500);
       }
-      if (!member.linkedin_url) { router.replace("/complete-profile"); return; }
-      if (!member.goal) { router.replace("/onboarding-goal"); return; }
-      router.replace("/explore");
     }
 
     // Handle both Google OAuth and magic-link sign-ins via the same listener

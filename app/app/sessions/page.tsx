@@ -26,7 +26,7 @@ export default function SessionsPage() {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/join"); return; }
-      const { data: me } = await supabase.from("members").select("id, credits").eq("email", session.user.email).single();
+      const { data: me } = await supabase.from("members").select("id, credits").eq("email", session.user.email).maybeSingle();
       if (!me) return;
       setMyId(me.id); setMyCredits(me.credits);
 
