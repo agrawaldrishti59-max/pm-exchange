@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -17,13 +18,14 @@ export default function ProfilePage() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [newSlot, setNewSlot] = useState("");
   const [addingSlot, setAddingSlot] = useState(false);
+  const [slotError, setSlotError] = useState("");
   const [stats, setStats] = useState({ gave: 0, received: 0 });
 
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/join"); return; }
-      const { data } = await supabase.from("members").select("*").eq("email", session.user.email).single();
+      const { data } = await supabase.from("members").select("*").eq("email", session.user.email).maybeSingle();
       setMe(data);
       if (data) {
         const now = new Date().toISOString();
@@ -42,7 +44,23 @@ export default function ProfilePage() {
   async function addSlot() {
     if (!newSlot || !me) return;
     setAddingSlot(true);
-    const { data } = await supabase.from("slots").insert([{ member_id: me.id, datetime: new Date(newSlot).toISOString(), is_booked: false }]).select().single();
+    setSlotError("");
+    const wantedIso = new Date(newSlot).toISOString();
+
+    // Check ALL of this member's existing slots (booked or not, past or future)
+    // to block an exact same date-and-time duplicate.
+    const { data: existing } = await supabase
+      .from("slots").select("datetime").eq("member_id", me.id);
+    const clash = (existing || []).some(
+      (e: any) => new Date(e.datetime).toISOString() === wantedIso
+    );
+    if (clash) {
+      setSlotError("You already have a slot at this exact date and time.");
+      setAddingSlot(false);
+      return;
+    }
+
+    const { data } = await supabase.from("slots").insert([{ member_id: me.id, datetime: wantedIso, is_booked: false }]).select().single();
     if (data) setSlots(s => [...s, data].sort((a, b) => a.datetime.localeCompare(b.datetime)));
     setNewSlot("");
     setAddingSlot(false);
@@ -119,6 +137,7 @@ export default function ProfilePage() {
               {addingSlot ? "…" : "+ Add"}
             </button>
           </div>
+          {slotError && <p style={{ color: "#e53e3e", fontSize: 12, margin: "8px 0 0" }}>{slotError}</p>}
         </div>
 
         {/* Details */}

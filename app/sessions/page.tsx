@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -19,12 +20,13 @@ export default function SessionsPage() {
   const [tab, setTab] = useState<"upcoming" | "give">("upcoming");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [banner, setBanner] = useState("");
 
   useEffect(() => {
     async function load() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.replace("/join"); return; }
-      const { data: me } = await supabase.from("members").select("id, credits").eq("email", session.user.email).single();
+      const { data: me } = await supabase.from("members").select("id, credits").eq("email", session.user.email).maybeSingle();
       if (!me) return;
       setMyId(me.id); setMyCredits(me.credits);
 
@@ -34,7 +36,6 @@ export default function SessionsPage() {
         .order("created_at", { ascending: false });
       setSessions((data as any) || []);
 
-      // Load slot datetimes
       const slotIds = ((data as any) || []).filter((s: any) => s.slot_id).map((s: any) => s.slot_id);
       if (slotIds.length > 0) {
         const { data: slotData } = await supabase.from("slots").select("id, datetime").in("id", slotIds);
@@ -48,16 +49,28 @@ export default function SessionsPage() {
   }, [router]);
 
   async function acceptSession(s: Session) {
-    setActing(s.id);
-    // Update status to accepted
+    setActing(s.id); setBanner("");
+    // Deduct 1 credit from the booker now (only on acceptance)
+    const { data: booker } = await supabase.from("members").select("credits").eq("id", s.booker.id).single();
+    if (!booker || booker.credits < 1) {
+      // Booker has no credits anymore; cancel instead
+      await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
+      if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
+      await supabase.from("notifications").insert([{
+        member_id: s.booker.id, title: "Session could not be confirmed",
+        body: `You no longer have enough credits for the session with ${s.host.name}.`
+      }]);
+      setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "cancelled" } : x));
+      setActing(null);
+      return;
+    }
+    await supabase.from("members").update({ credits: booker.credits - 1 }).eq("id", s.booker.id);
     await supabase.from("sessions").update({ status: "accepted" }).eq("id", s.id);
-    // Notify booker + generate meet link via API
     await fetch("/api/accept", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: s.id, hostId: s.host.id, bookerId: s.booker.id }) });
-    // Create notification for booker
     await supabase.from("notifications").insert([{
       member_id: s.booker.id,
-      title: "Session accepted! 🎉",
-      body: `${s.host.name} accepted your request. Check your email for the Google Meet link.`
+      title: "Session accepted",
+      body: `${s.host.name} accepted your request. Check your email for the Google Meet link. 1 credit was used.`
     }]);
     setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "accepted" } : x));
     setActing(null);
@@ -65,17 +78,13 @@ export default function SessionsPage() {
 
   async function declineSession(s: Session) {
     setActing(s.id);
-    // Refund credit to booker
-    const { data: booker } = await supabase.from("members").select("credits").eq("id", s.booker.id).single();
-    if (booker) await supabase.from("members").update({ credits: booker.credits + 1 }).eq("id", s.booker.id);
-    // Unbook slot
+    // No credit was deducted at request time, so nothing to refund.
     if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
     await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
-    // Notify booker
     await supabase.from("notifications").insert([{
       member_id: s.booker.id,
       title: "Session declined",
-      body: `${s.host.name} couldn't accept this time. Your credit has been refunded.`
+      body: `${s.host.name} could not accept this time. No credit was used.`
     }]);
     setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "cancelled" } : x));
     setActing(null);
@@ -86,11 +95,10 @@ export default function SessionsPage() {
     const { data: host } = await supabase.from("members").select("credits").eq("id", s.host.id).single();
     if (host) await supabase.from("members").update({ credits: host.credits + 1 }).eq("id", s.host.id);
     await supabase.from("sessions").update({ status: "completed" }).eq("id", s.id);
-    // Notify host about credit
     await supabase.from("notifications").insert([{
       member_id: s.host.id,
-      title: "+1 credit earned 🎉",
-      body: `Session with ${s.booker.name} marked complete. You earned 1 credit!`
+      title: "+1 credit earned",
+      body: `Session with ${s.booker.name} marked complete. You earned 1 credit.`
     }]);
     setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "completed" } : x));
     if (s.host.id === myId) setMyCredits(c => c + 1);
@@ -99,8 +107,8 @@ export default function SessionsPage() {
 
   const statusLabel: Record<string, { bg: string; color: string; text: string }> = {
     pending: { bg: "#FAEEDA", color: "#633806", text: "Pending" },
-    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Accepted ✓" },
-    completed: { bg: "#EAF3DE", color: "#3B6D11", text: "Done ✓" },
+    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Accepted" },
+    completed: { bg: "#EAF3DE", color: "#3B6D11", text: "Done" },
     cancelled: { bg: "#f5f5f5", color: "#999", text: "Cancelled" },
   };
 
@@ -117,7 +125,7 @@ export default function SessionsPage() {
             <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{other?.name}</p>
             <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{[other?.role, other?.company].filter(Boolean).join(" @ ")}</p>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0, marginLeft: 8 }}>{iAmHost ? (s.status === "completed" ? "Gave ✓" : s.status === "accepted" ? "Accepted ✓" : "Giving") : (s.status === "completed" ? "Got ✓" : sl.text)}</span>
+          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0, marginLeft: 8 }}>{iAmHost ? (s.status === "completed" ? "Gave" : s.status === "accepted" ? "Accepted" : "Giving") : (s.status === "completed" ? "Got" : sl.text)}</span>
         </div>
         {slotTime && <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>📅 {slotTime}</p>}
         {s.note && <p style={{ fontSize: 12, color: "#888", background: "#f9f9f9", borderRadius: 6, padding: "6px 8px", marginBottom: 8 }}>"{s.note}"</p>}
@@ -129,7 +137,7 @@ export default function SessionsPage() {
         {s.status === "pending" && iAmHost && (
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
             <button style={{ flex: 1, padding: "9px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              onClick={() => acceptSession(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "✓ Accept"}</button>
+              onClick={() => acceptSession(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Accept"}</button>
             <button style={{ flex: 1, padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
               onClick={() => declineSession(s)} disabled={acting === s.id}>Decline</button>
           </div>
@@ -138,7 +146,7 @@ export default function SessionsPage() {
           <button style={{ width: "100%", padding: "9px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 4 }}
             onClick={() => markComplete(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Mark session done · earn +1 credit"}</button>
         )}
-        {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#3B6D11", textAlign: "center", fontWeight: 500, marginTop: 8 }}>+1 credit earned 🎉</p>}
+        {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#3B6D11", textAlign: "center", fontWeight: 500, marginTop: 8 }}>+1 credit earned</p>}
       </div>
     );
   }
@@ -176,7 +184,7 @@ export default function SessionsPage() {
         )}
         {!loading && tab === "give" && (
           <>
-            {giveRequests.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#999" }}><p>No requests yet.</p><p style={{ marginTop: 4, fontSize: 13 }}>When someone books you, it'll appear here.</p></div>}
+            {giveRequests.length === 0 && <div style={{ textAlign: "center", padding: 40, color: "#999" }}><p>No requests yet.</p><p style={{ marginTop: 4, fontSize: 13 }}>When someone books you, it will appear here.</p></div>}
             {giveRequests.map(s => <Card key={s.id} s={s} />)}
             {pastSessions.filter(s => s.host?.id === myId).length > 0 && <>
               <p style={{ fontSize: 11, fontWeight: 600, color: "#999", textTransform: "uppercase", margin: "16px 0 8px" }}>Past</p>

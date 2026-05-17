@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -18,22 +19,13 @@ export default function OnboardingGoal() {
   const [email, setEmail] = useState("");
 
   useEffect(() => {
-  async function getSession() {
-    // Wait for session to be available
-    let attempts = 0;
-    while (attempts < 10) {
+    async function getSession() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email) {
-        setEmail(session.user.email);
-        return;
-      }
-      await new Promise(r => setTimeout(r, 500));
-      attempts++;
+      if (session?.user?.email) setEmail(session.user.email);
+      else router.replace("/join");
     }
-    router.replace("/join");
-  }
-  getSession();
-}, [router]);
+    getSession();
+  }, [router]);
 
   async function handleSubmit() {
     if (!selected) return;

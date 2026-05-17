@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -11,21 +12,14 @@ export default function AddSlots() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-  async function getSession() {
-    let attempts = 0;
-    while (attempts < 10) {
+    async function getSession() {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email) {
-        const { data } = await supabase.from("members").select("id").eq("email", session.user.email).single();
-        if (data) { setMemberId(data.id); return; }
-      }
-      await new Promise(r => setTimeout(r, 500));
-      attempts++;
+      if (!session) { router.replace("/join"); return; }
+      const { data } = await supabase.from("members").select("id").eq("email", session.user.email).maybeSingle();
+      if (data) setMemberId(data.id);
     }
-    router.replace("/join");
-  }
-  getSession();
-}, [router]);
+    getSession();
+  }, [router]);
 
   function addSlot() {
     if (!newSlot) return;
@@ -42,8 +36,16 @@ export default function AddSlots() {
   async function handleSave() {
     setSaving(true);
     if (slots.length > 0 && memberId) {
-      const rows = slots.map(s => ({ member_id: memberId, datetime: new Date(s).toISOString(), is_booked: false }));
-      await supabase.from("slots").insert(rows);
+      // Reject any slot whose exact datetime already exists for this member
+      const wanted = slots.map(s => new Date(s).toISOString());
+      const { data: existing } = await supabase
+        .from("slots").select("datetime").eq("member_id", memberId);
+      const existingSet = new Set((existing || []).map((e: any) => new Date(e.datetime).toISOString()));
+      const fresh = wanted.filter(w => !existingSet.has(w));
+      if (fresh.length > 0) {
+        const rows = fresh.map(d => ({ member_id: memberId, datetime: d, is_booked: false }));
+        await supabase.from("slots").insert(rows);
+      }
     }
     router.replace("/explore");
   }

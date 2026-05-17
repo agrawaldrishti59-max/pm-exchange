@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +11,7 @@ export default function PendingPage() {
     const interval = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase.from("members").select("status, goal").eq("email", session.user.email).single();
+      const { data } = await supabase.from("members").select("status, goal").eq("email", session.user.email).maybeSingle();
       if (data?.status === "approved") {
         clearInterval(interval);
         router.replace("/explore");
