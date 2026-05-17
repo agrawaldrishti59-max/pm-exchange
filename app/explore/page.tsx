@@ -23,11 +23,10 @@ function formatSlot(dt: string) {
 }
 
 const EXP_FILTERS = [
-  { id: "all", label: "All experience" },
-  { id: "0-2", label: "0-2 yrs", min: 0, max: 2 },
-  { id: "3-5", label: "3-5 yrs", min: 3, max: 5 },
-  { id: "6-10", label: "6-10 yrs", min: 6, max: 10 },
-  { id: "10+", label: "10+ yrs", min: 11, max: 999 },
+  { id: "all", label: "All" },
+  { id: "lt3", label: "< 3 yrs", min: 0, max: 2 },
+  { id: "3-6", label: "3 to 6 yrs", min: 3, max: 6 },
+  { id: "gt6", label: "6+ yrs", min: 7, max: 999 },
 ];
 
 export default function ExplorePage() {
@@ -164,13 +163,11 @@ export default function ExplorePage() {
                   </div>
                 </div>
               ) : (
-                <div style={{ borderTop: "1px solid #f5f5f5", paddingTop: 8, marginBottom: 10 }}>
-                  <p style={{ fontSize: 12, color: "#ccc", margin: 0 }}>No slots added yet</p>
-                </div>
+                <div style={{ marginBottom: 4 }} />
               )}
 
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/members/${m.id}`} style={{ flex: 1, textAlign: "center", padding: "9px", background: "#111", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                <Link href={`/members/${m.id}`} style={{ flex: 1, textAlign: "center", padding: "10px", background: "#4F46E5", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
                   View & book
                 </Link>
                 <a href={linkedinHref} target="_blank" rel="noopener noreferrer"

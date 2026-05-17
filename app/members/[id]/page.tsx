@@ -75,7 +75,7 @@ export default function MemberPage() {
       await supabase.from("notifications").insert([{
         member_id: member.id,
         title: "New interview request",
-        body: `${me.name} wants to practice with you on ${formatSlot(slots.find(s => s.id === selectedSlot)?.datetime || "")}`
+        body: `${me.name} wants to practice with you on ${formatSlot(slots.find(s => s.id === selectedSlot)?.datetime || "")}. LinkedIn: ${me.linkedin_url || "not provided"}`
       }]);
       await fetch("/api/book", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bookerId: me.id, hostId: member.id, slotId: selectedSlot, sessionId: sess?.id, note }) });
       setBooked(true);
@@ -85,15 +85,6 @@ export default function MemberPage() {
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: "#999" }}>Loading…</div>;
   if (!member) return <div style={{ padding: 40, textAlign: "center", color: "#999" }}>Member not found</div>;
-
-  if (booked) return (
-    <div style={{ padding: 32, textAlign: "center", maxWidth: 400, margin: "0 auto" }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
-      <h2>Request sent!</h2>
-      <p style={{ color: "#666", lineHeight: 1.6, marginTop: 8 }}><strong>{member.name}</strong> has been notified. Once they accept, <strong>1 credit</strong> will be used and you will both get a Google Meet link.</p>
-      <button onClick={() => router.push("/explore")} style={{ width: "100%", marginTop: 20, padding: 13, background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Back to explore</button>
-    </div>
-  );
 
   const isMe = me?.id === member.id;
   const av = avatarColor(member.id);
@@ -160,7 +151,7 @@ export default function MemberPage() {
                 <textarea style={{ width: "100%", padding: 12, border: "1px solid #ddd", borderRadius: 8, fontSize: 13, resize: "none" as const, marginBottom: 12, boxSizing: "border-box" as const, fontFamily: "inherit" }} rows={2}
                   placeholder={`Message to ${member.name?.split(" ")[0]} (optional)`} value={note} onChange={e => setNote(e.target.value)} />
                 {error && <p style={{ color: "red", fontSize: 13, marginBottom: 8 }}>{error}</p>}
-                <button style={{ width: "100%", padding: 13, background: !selectedSlot || (me?.credits ?? 0) < 1 ? "#ccc" : "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: !selectedSlot || (me?.credits ?? 0) < 1 ? "not-allowed" : "pointer" }}
+                <button style={{ width: "100%", padding: 13, background: !selectedSlot || (me?.credits ?? 0) < 1 ? "#ccc" : "#4F46E5", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: !selectedSlot || (me?.credits ?? 0) < 1 ? "not-allowed" : "pointer" }}
                   onClick={handleBook} disabled={booking || !selectedSlot || (me?.credits ?? 0) < 1}>
                   {booking ? "Sending request…" : !selectedSlot ? "Select a slot first" : "Send request"}
                 </button>
@@ -169,6 +160,27 @@ export default function MemberPage() {
           </div>
         )}
       </div>
+
+      {booked && (
+        <div onClick={() => router.push("/explore")}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 360, width: "100%", textAlign: "center", position: "relative" }}>
+            <button onClick={() => setBooked(false)} aria-label="Close"
+              style={{ position: "absolute", top: 12, right: 14, background: "none", border: "none", fontSize: 20, color: "#999", cursor: "pointer" }}>×</button>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>✅</div>
+            <h2 style={{ fontSize: 18, margin: "0 0 8px" }}>Request sent</h2>
+            <p style={{ color: "#666", lineHeight: 1.6, fontSize: 14, margin: "0 0 20px" }}>
+              <strong>{member.name}</strong> has been notified. Once they accept, <strong>1 credit</strong> is used and you both get a Google Meet link.
+            </p>
+            <button onClick={() => router.push("/explore")}
+              style={{ width: "100%", padding: 12, background: "#4F46E5", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+              Back to explore
+            </button>
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
   );

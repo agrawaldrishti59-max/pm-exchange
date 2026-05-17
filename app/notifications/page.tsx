@@ -8,9 +8,11 @@ import BottomNav from "@/components/BottomNav";
 type Notif = { id: string; title: string; body: string; is_read: boolean; created_at: string; };
 
 function routeFor(title: string) {
-  // All session-related notifications route to /sessions
   const t = title.toLowerCase();
-  if (t.includes("request") || t.includes("accept") || t.includes("declin") || t.includes("credit") || t.includes("session") || t.includes("confirm")) return "/sessions";
+  // A brand-new incoming request -> the "Take interview" tab where Accept/Decline live
+  if (t.includes("new interview request") || t.includes("requested")) return "/sessions?tab=give";
+  // A request the host accepted/declined, or credit/session updates -> default bookings view
+  if (t.includes("accept") || t.includes("declin") || t.includes("credit") || t.includes("session") || t.includes("confirm") || t.includes("withdr")) return "/sessions";
   if (t.includes("approv")) return "/explore";
   return "/sessions";
 }

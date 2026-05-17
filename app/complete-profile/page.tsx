@@ -6,9 +6,42 @@ import { supabase } from "@/lib/supabase";
 
 const inp = { width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "8px", fontSize: "14px", marginBottom: "12px", display: "block" as const, boxSizing: "border-box" as const, fontFamily: "inherit" };
 
+const TITLES = [
+  "Product Manager",
+  "Associate Product Manager",
+  "Senior Product Manager",
+  "Group Product Manager",
+  "Principal Product Manager",
+  "Director of Product",
+  "VP Product",
+  "Chief Product Officer",
+  "Product Owner",
+  "Technical Product Manager",
+  "Growth Product Manager",
+  "Platform Product Manager",
+  "Data Product Manager",
+  "AI/ML Product Manager",
+  "Product Analyst",
+  "Product Marketing Manager",
+  "Product Designer",
+  "Product Operations",
+  "Program Manager",
+  "Technical Program Manager",
+  "Project Manager",
+  "Senior Project Manager",
+  "Project Coordinator",
+  "Scrum Master",
+  "Agile Coach",
+  "Delivery Manager",
+  "Business Analyst",
+  "Other (specify)",
+];
+
 export default function CompleteProfile() {
   const router = useRouter();
   const [form, setForm] = useState({ linkedin_username: "", company: "", role: "", whatsapp: "", bio: "", years_experience: "" });
+  const [titleChoice, setTitleChoice] = useState("");
+  const [otherTitle, setOtherTitle] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,6 +62,8 @@ export default function CompleteProfile() {
 
   async function handleSubmit() {
     if (!form.linkedin_username.trim()) { setError("LinkedIn username is required."); return; }
+    const resolvedRole = titleChoice === "Other (specify)" ? otherTitle.trim() : titleChoice;
+    if (!resolvedRole) { setError("Please select your title."); return; }
     setLoading(true); setError("");
     try {
       const cleaned = form.linkedin_username.trim().replace(/^.*linkedin\.com\/in\//, "").replace(/\/$/, "");
@@ -37,7 +72,7 @@ export default function CompleteProfile() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email, linkedin_url, company: form.company, role: form.role,
+          email, linkedin_url, company: form.company, role: resolvedRole,
           whatsapp: form.whatsapp, bio: form.bio,
           years_experience: form.years_experience ? parseInt(form.years_experience) : null,
         }),
@@ -76,7 +111,15 @@ export default function CompleteProfile() {
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Title</label>
-          <input style={inp} placeholder="Sr. PM" value={form.role} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} />
+          <select style={{ ...inp, appearance: "none" as const, background: "#fff" }} value={titleChoice}
+            onChange={e => setTitleChoice(e.target.value)}>
+            <option value="">Select your title…</option>
+            {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {titleChoice === "Other (specify)" && (
+            <input style={inp} placeholder="Your title" value={otherTitle}
+              onChange={e => setOtherTitle(e.target.value)} />
+          )}
         </div>
       </div>
       <div style={{ display: "flex", gap: 8 }}>

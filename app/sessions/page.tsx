@@ -1,26 +1,51 @@
 "use client";
 export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 
 type Session = { id: string; status: string; meet_link: string | null; note: string | null; created_at: string; slot_id: string | null; booker: any; host: any; };
 
+const BRAND = "#4F46E5";
+
 function formatSlot(dt: string) {
   return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
+function waLink(num: string) {
+  const clean = (num || "").replace(/[^0-9]/g, "");
+  return clean ? `https://wa.me/${clean}` : null;
+}
 
-export default function SessionsPage() {
+function SessionsInner() {
   const router = useRouter();
+  const params = useSearchParams();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [slots, setSlots] = useState<Record<string, string>>({});
   const [myId, setMyId] = useState<string | null>(null);
   const [myCredits, setMyCredits] = useState(0);
-  const [tab, setTab] = useState<"upcoming" | "give">("upcoming");
+  const [tab, setTab] = useState<"upcoming" | "give">(params.get("tab") === "give" ? "give" : "upcoming");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
-  const [banner, setBanner] = useState("");
+  const [feedbackFor, setFeedbackFor] = useState<Session | null>(null);
+  const [fbRating, setFbRating] = useState(0);
+  const [fbComment, setFbComment] = useState("");
+
+  async function reload(meId: string) {
+    const { data } = await supabase.from("sessions")
+      .select(`id, status, meet_link, note, created_at, slot_id, booker:booker_id(id,name,company,role,email,whatsapp,linkedin_url), host:host_id(id,name,company,role,email,whatsapp,linkedin_url)`)
+      .or(`booker_id.eq.${meId},host_id.eq.${meId}`)
+      .order("created_at", { ascending: false });
+    setSessions((data as any) || []);
+    const slotIds = ((data as any) || []).filter((s: any) => s.slot_id).map((s: any) => s.slot_id);
+    if (slotIds.length > 0) {
+      const { data: slotData } = await supabase.from("slots").select("id, datetime").in("id", slotIds);
+      const map: Record<string, string> = {};
+      (slotData || []).forEach((s: any) => { map[s.id] = s.datetime; });
+      setSlots(map);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -29,38 +54,23 @@ export default function SessionsPage() {
       const { data: me } = await supabase.from("members").select("id, credits").eq("email", session.user.email).maybeSingle();
       if (!me) return;
       setMyId(me.id); setMyCredits(me.credits);
-
-      const { data } = await supabase.from("sessions")
-        .select(`id, status, meet_link, note, created_at, slot_id, booker:booker_id(id,name,company,role,email,whatsapp), host:host_id(id,name,company,role,email,whatsapp)`)
-        .or(`booker_id.eq.${me.id},host_id.eq.${me.id}`)
-        .order("created_at", { ascending: false });
-      setSessions((data as any) || []);
-
-      const slotIds = ((data as any) || []).filter((s: any) => s.slot_id).map((s: any) => s.slot_id);
-      if (slotIds.length > 0) {
-        const { data: slotData } = await supabase.from("slots").select("id, datetime").in("id", slotIds);
-        const map: Record<string, string> = {};
-        (slotData || []).forEach((s: any) => { map[s.id] = s.datetime; });
-        setSlots(map);
-      }
+      await reload(me.id);
       setLoading(false);
     }
     load();
   }, [router]);
 
   async function acceptSession(s: Session) {
-    setActing(s.id); setBanner("");
-    // Deduct 1 credit from the booker now (only on acceptance)
+    setActing(s.id);
     const { data: booker } = await supabase.from("members").select("credits").eq("id", s.booker.id).single();
     if (!booker || booker.credits < 1) {
-      // Booker has no credits anymore; cancel instead
       await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
       if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
       await supabase.from("notifications").insert([{
         member_id: s.booker.id, title: "Session could not be confirmed",
         body: `You no longer have enough credits for the session with ${s.host.name}.`
       }]);
-      setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "cancelled" } : x));
+      if (myId) await reload(myId);
       setActing(null);
       return;
     }
@@ -70,23 +80,51 @@ export default function SessionsPage() {
     await supabase.from("notifications").insert([{
       member_id: s.booker.id,
       title: "Session accepted",
-      body: `${s.host.name} accepted your request. Check your email for the Google Meet link. 1 credit was used.`
+      body: `${s.host.name} accepted your request. The Google Meet link is in your email and on the session. 1 credit was used.`
     }]);
-    setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "accepted" } : x));
+    if (myId) await reload(myId);
     setActing(null);
   }
 
   async function declineSession(s: Session) {
     setActing(s.id);
-    // No credit was deducted at request time, so nothing to refund.
     if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
     await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
     await supabase.from("notifications").insert([{
-      member_id: s.booker.id,
-      title: "Session declined",
+      member_id: s.booker.id, title: "Session declined",
       body: `${s.host.name} could not accept this time. No credit was used.`
     }]);
-    setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "cancelled" } : x));
+    if (myId) await reload(myId);
+    setActing(null);
+  }
+
+  async function retractRequest(s: Session) {
+    setActing(s.id);
+    if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
+    await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
+    await supabase.from("notifications").insert([{
+      member_id: s.host.id, title: "Request withdrawn",
+      body: `${s.booker.name} withdrew their interview request.`
+    }]);
+    if (myId) await reload(myId);
+    setActing(null);
+  }
+
+  async function cancelAccepted(s: Session) {
+    setActing(s.id);
+    const { data: booker } = await supabase.from("members").select("credits").eq("id", s.booker.id).single();
+    if (booker) await supabase.from("members").update({ credits: booker.credits + 1 }).eq("id", s.booker.id);
+    if (s.slot_id) await supabase.from("slots").update({ is_booked: false }).eq("id", s.slot_id);
+    await supabase.from("sessions").update({ status: "cancelled" }).eq("id", s.id);
+    const iAmHost = s.host?.id === myId;
+    const notifyId = iAmHost ? s.booker.id : s.host.id;
+    const otherName = iAmHost ? s.host.name : s.booker.name;
+    await supabase.from("notifications").insert([{
+      member_id: notifyId, title: "Session cancelled",
+      body: `${otherName} cancelled the session. The credit has been refunded. You can rebook anytime.`
+    }]);
+    if (myId === s.booker.id) setMyCredits(c => c + 1);
+    if (myId) await reload(myId);
     setActing(null);
   }
 
@@ -96,13 +134,29 @@ export default function SessionsPage() {
     if (host) await supabase.from("members").update({ credits: host.credits + 1 }).eq("id", s.host.id);
     await supabase.from("sessions").update({ status: "completed" }).eq("id", s.id);
     await supabase.from("notifications").insert([{
-      member_id: s.host.id,
-      title: "+1 credit earned",
-      body: `Session with ${s.booker.name} marked complete. You earned 1 credit.`
+      member_id: s.booker.id, title: "Session completed",
+      body: `${s.host.name} marked your session complete.`
     }]);
-    setSessions(prev => prev.map(x => x.id === s.id ? { ...x, status: "completed" } : x));
     if (s.host.id === myId) setMyCredits(c => c + 1);
+    if (myId) await reload(myId);
     setActing(null);
+    setFeedbackFor(s);
+    setFbRating(0);
+    setFbComment("");
+  }
+
+  async function submitFeedback() {
+    if (!feedbackFor || fbRating < 1) return;
+    setActing(feedbackFor.id);
+    await supabase.from("feedback").insert([{
+      session_id: feedbackFor.id,
+      giver_id: feedbackFor.host.id,
+      receiver_id: feedbackFor.booker.id,
+      rating: fbRating,
+      comment: fbComment || null,
+    }]);
+    setActing(null);
+    setFeedbackFor(null);
   }
 
   const statusLabel: Record<string, { bg: string; color: string; text: string }> = {
@@ -112,11 +166,23 @@ export default function SessionsPage() {
     cancelled: { bg: "#f5f5f5", color: "#999", text: "Cancelled" },
   };
 
+  function slotPassed(s: Session) {
+    if (!s.slot_id || !slots[s.slot_id]) return false;
+    return new Date(slots[s.slot_id]).getTime() < Date.now();
+  }
+
   function Card({ s }: { s: Session }) {
     const iAmHost = s.host?.id === myId;
     const other = iAmHost ? s.booker : s.host;
     const sl = statusLabel[s.status] || statusLabel.pending;
     const slotTime = s.slot_id && slots[s.slot_id] ? formatSlot(slots[s.slot_id]) : null;
+    const wa = waLink(other?.whatsapp);
+    const linkedin = other?.linkedin_url ? (other.linkedin_url.startsWith("http") ? other.linkedin_url : `https://${other.linkedin_url}`) : null;
+    const canMarkDone = slotPassed(s);
+
+    const badge = iAmHost
+      ? (s.status === "completed" ? "Taken" : s.status === "accepted" ? "Taking" : s.status === "cancelled" ? "Cancelled" : "Take interview")
+      : (s.status === "completed" ? "Got" : sl.text);
 
     return (
       <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14, marginBottom: 8 }}>
@@ -125,27 +191,67 @@ export default function SessionsPage() {
             <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{other?.name}</p>
             <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{[other?.role, other?.company].filter(Boolean).join(" @ ")}</p>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0, marginLeft: 8 }}>{iAmHost ? (s.status === "completed" ? "Gave" : s.status === "accepted" ? "Accepted" : "Giving") : (s.status === "completed" ? "Got" : sl.text)}</span>
+          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0, marginLeft: 8 }}>{badge}</span>
         </div>
         {slotTime && <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>📅 {slotTime}</p>}
         {s.note && <p style={{ fontSize: 12, color: "#888", background: "#f9f9f9", borderRadius: 6, padding: "6px 8px", marginBottom: 8 }}>"{s.note}"</p>}
-        <div style={{ fontSize: 12, color: "#666", marginBottom: s.status !== "completed" ? 10 : 0 }}>
+
+        <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
           {other?.email && <p style={{ margin: "2px 0" }}>✉️ {other.email}</p>}
-          {other?.whatsapp && <p style={{ margin: "2px 0" }}>📱 {other.whatsapp}</p>}
-          {s.meet_link && <p style={{ margin: "4px 0" }}><a href={s.meet_link} target="_blank" rel="noopener noreferrer" style={{ color: "#0F6E56", fontWeight: 500 }}>🎥 Join Google Meet</a></p>}
         </div>
+
+        {(s.status === "accepted") && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+            {s.meet_link && (
+              <a href={s.meet_link} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", textAlign: "center", padding: "10px", background: "#0F6E56", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                Join Google Meet
+              </a>
+            )}
+            {wa && (
+              <a href={wa} target="_blank" rel="noopener noreferrer"
+                style={{ display: "block", textAlign: "center", padding: "10px", background: "#25D366", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                Message on WhatsApp
+              </a>
+            )}
+          </div>
+        )}
+
+        {linkedin && (
+          <a href={linkedin} target="_blank" rel="noopener noreferrer"
+            style={{ display: "block", textAlign: "center", padding: "8px", background: "#0A66C2", color: "#fff", borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: "none", marginBottom: 10 }}>
+            View LinkedIn
+          </a>
+        )}
+
         {s.status === "pending" && iAmHost && (
           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button style={{ flex: 1, padding: "9px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            <button style={{ flex: 1, padding: "9px", background: BRAND, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
               onClick={() => acceptSession(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Accept"}</button>
             <button style={{ flex: 1, padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
               onClick={() => declineSession(s)} disabled={acting === s.id}>Decline</button>
           </div>
         )}
-        {s.status === "accepted" && iAmHost && (
-          <button style={{ width: "100%", padding: "9px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", marginTop: 4 }}
-            onClick={() => markComplete(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Mark session done · earn +1 credit"}</button>
+
+        {s.status === "pending" && !iAmHost && (
+          <button style={{ width: "100%", padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer", marginTop: 4 }}
+            onClick={() => retractRequest(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Withdraw request"}</button>
         )}
+
+        {s.status === "accepted" && (
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            {iAmHost && (
+              <button
+                style={{ flex: 1, padding: "9px", background: canMarkDone ? BRAND : "#ccc", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: canMarkDone ? "pointer" : "not-allowed" }}
+                onClick={() => canMarkDone && markComplete(s)} disabled={acting === s.id || !canMarkDone}>
+                {acting === s.id ? "…" : canMarkDone ? "Mark done · +1 credit" : "Mark done after slot"}
+              </button>
+            )}
+            <button style={{ flex: iAmHost ? 1 : undefined, width: iAmHost ? undefined : "100%", padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+              onClick={() => cancelAccepted(s)} disabled={acting === s.id}>Cancel session</button>
+          </div>
+        )}
+
         {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#3B6D11", textAlign: "center", fontWeight: 500, marginTop: 8 }}>+1 credit earned</p>}
       </div>
     );
@@ -164,8 +270,8 @@ export default function SessionsPage() {
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {(["upcoming", "give"] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", background: tab === t ? "#111" : "#f0f0f0", color: tab === t ? "#fff" : "#666" }}>
-              {t === "upcoming" ? "My bookings" : `Give interview${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
+            <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", background: tab === t ? BRAND : "#f0f0f0", color: tab === t ? "#fff" : "#666" }}>
+              {t === "upcoming" ? "My bookings" : `Take interview${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
             </button>
           ))}
         </div>
@@ -193,7 +299,44 @@ export default function SessionsPage() {
           </>
         )}
       </div>
+
+      {feedbackFor && (
+        <div onClick={() => setFeedbackFor(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 16, padding: 24, maxWidth: 380, width: "100%" }}>
+            <h2 style={{ fontSize: 18, margin: "0 0 6px" }}>How was the session?</h2>
+            <p style={{ fontSize: 13, color: "#666", margin: "0 0 16px" }}>Your feedback on {feedbackFor.booker?.name} stays private.</p>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, justifyContent: "center" }}>
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} onClick={() => setFbRating(n)}
+                  style={{ fontSize: 28, background: "none", border: "none", cursor: "pointer", filter: n <= fbRating ? "none" : "grayscale(1) opacity(0.4)" }}>⭐</button>
+              ))}
+            </div>
+            <textarea value={fbComment} onChange={e => setFbComment(e.target.value)} rows={3}
+              placeholder="Any comments? (optional)"
+              style={{ width: "100%", padding: 12, border: "1px solid #ddd", borderRadius: 8, fontSize: 13, resize: "none", boxSizing: "border-box", fontFamily: "inherit", marginBottom: 16 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setFeedbackFor(null)}
+                style={{ flex: 1, padding: 12, background: "transparent", color: "#666", border: "1px solid #ddd", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>Skip</button>
+              <button onClick={submitFeedback} disabled={fbRating < 1 || acting === feedbackFor.id}
+                style={{ flex: 1, padding: 12, background: fbRating < 1 ? "#ccc" : BRAND, color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: fbRating < 1 ? "not-allowed" : "pointer" }}>
+                {acting === feedbackFor.id ? "Saving…" : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomNav />
     </div>
+  );
+}
+
+export default function SessionsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" }}>Loading…</div>}>
+      <SessionsInner />
+    </Suspense>
   );
 }

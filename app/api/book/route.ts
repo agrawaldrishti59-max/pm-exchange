@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           type: "request",
           bookerName: booker.name, bookerEmail: booker.email, bookerWhatsapp: booker.whatsapp || "",
+          bookerLinkedin: booker.linkedin_url || "",
           hostName: host.name, hostEmail: host.email, hostWhatsapp: host.whatsapp || "",
           note: note || "",
         }),

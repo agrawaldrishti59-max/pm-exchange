@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { AUTO_APPROVE } from "@/lib/config";
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -21,7 +22,11 @@ export default function AuthCallback() {
           .from("members").select("status, linkedin_url, goal").eq("email", email).maybeSingle();
         if (error) throw error;
         if (!member) {
-          await supabase.from("members").insert([{ email, name, avatar_url, status: "pending", credits: 0 }]);
+          await supabase.from("members").insert([{
+            email, name, avatar_url,
+            status: AUTO_APPROVE ? "approved" : "pending",
+            credits: AUTO_APPROVE ? 2 : 0,
+          }]);
           router.replace("/complete-profile");
           return;
         }
