@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -7,37 +8,39 @@ const inp = { width: "100%", padding: "12px", border: "1px solid #ddd", borderRa
 
 export default function CompleteProfile() {
   const router = useRouter();
-  const [form, setForm] = useState({ linkedin_url: "", company: "", role: "", whatsapp: "", bio: "", years_experience: "" });
+  const [form, setForm] = useState({ linkedin_username: "", company: "", role: "", whatsapp: "", bio: "", years_experience: "" });
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
- useEffect(() => {
-  async function getSession() {
-    // Wait for session to be available
-    let attempts = 0;
-    while (attempts < 10) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email) {
-        setEmail(session.user.email);
-        return;
+  useEffect(() => {
+    async function getSession() {
+      let attempts = 0;
+      while (attempts < 10) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) { setEmail(session.user.email); return; }
+        await new Promise(r => setTimeout(r, 500));
+        attempts++;
       }
-      await new Promise(r => setTimeout(r, 500));
-      attempts++;
+      router.replace("/join");
     }
-    router.replace("/join");
-  }
-  getSession();
-}, [router]);
+    getSession();
+  }, [router]);
 
   async function handleSubmit() {
-    if (!form.linkedin_url) { setError("LinkedIn URL is required."); return; }
+    if (!form.linkedin_username.trim()) { setError("LinkedIn username is required."); return; }
     setLoading(true); setError("");
     try {
+      const cleaned = form.linkedin_username.trim().replace(/^.*linkedin\.com\/in\//, "").replace(/\/$/, "");
+      const linkedin_url = `https://www.linkedin.com/in/${cleaned}`;
       const res = await fetch("/api/auth/complete-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, ...form, years_experience: form.years_experience ? parseInt(form.years_experience) : null }),
+        body: JSON.stringify({
+          email, linkedin_url, company: form.company, role: form.role,
+          whatsapp: form.whatsapp, bio: form.bio,
+          years_experience: form.years_experience ? parseInt(form.years_experience) : null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -57,8 +60,15 @@ export default function CompleteProfile() {
         <p style={{ color: "#666", margin: 0, fontSize: 14 }}>This helps the community know who you are.</p>
       </div>
       {error && <p style={{ color: "red", fontSize: 13, marginBottom: 12 }}>{error}</p>}
-      <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>LinkedIn URL *</label>
-      <input style={inp} placeholder="linkedin.com/in/yourname" value={form.linkedin_url} onChange={e => setForm(f => ({ ...f, linkedin_url: e.target.value }))} />
+
+      <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>LinkedIn *</label>
+      <div style={{ display: "flex", alignItems: "stretch", border: "1px solid #ddd", borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+        <span style={{ padding: "12px 4px 12px 12px", fontSize: 14, color: "#999", background: "#f7f7f7", whiteSpace: "nowrap", display: "flex", alignItems: "center" }}>linkedin.com/in/</span>
+        <input style={{ flex: 1, padding: "12px", border: "none", fontSize: 14, outline: "none", fontFamily: "inherit" }}
+          placeholder="drishti-agrawal" value={form.linkedin_username}
+          onChange={e => setForm(f => ({ ...f, linkedin_username: e.target.value }))} />
+      </div>
+
       <div style={{ display: "flex", gap: 8 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Company</label>
@@ -80,7 +90,7 @@ export default function CompleteProfile() {
         </div>
       </div>
       <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Short bio</label>
-      <textarea style={{ ...inp, resize: "none" as const }} rows={2} placeholder="e.g. PM at Razorpay, love 0→1 products" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} maxLength={120} />
+      <textarea style={{ ...inp, resize: "none" as const }} rows={2} placeholder="e.g. PM at Razorpay, love 0 to 1 products" value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))} maxLength={120} />
       <p style={{ fontSize: 11, color: "#bbb", marginTop: -8, marginBottom: 12 }}>{form.bio.length}/120</p>
       <button style={{ width: "100%", padding: "13px", borderRadius: "8px", fontSize: "15px", border: "none", background: "#111", color: "#fff", fontWeight: 600, cursor: "pointer" }}
         onClick={handleSubmit} disabled={loading}>
