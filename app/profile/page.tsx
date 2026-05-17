@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { TITLES } from "@/lib/titles";
 import BottomNav from "@/components/BottomNav";
 
 type Member = { id: string; name: string; email: string; company: string; role: string; linkedin_url: string; whatsapp: string; credits: number; bio: string; years_experience: number; avatar_url: string; status: string; };
@@ -20,6 +21,45 @@ export default function ProfilePage() {
   const [addingSlot, setAddingSlot] = useState(false);
   const [slotError, setSlotError] = useState("");
   const [stats, setStats] = useState({ gave: 0, received: 0 });
+  const [editing, setEditing] = useState(false);
+  const [eBio, setEBio] = useState("");
+  const [eTitleChoice, setETitleChoice] = useState("");
+  const [eOtherTitle, setEOtherTitle] = useState("");
+  const [eYears, setEYears] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  function openEdit() {
+    if (!me) return;
+    setEBio(me.bio || "");
+    setEYears(me.years_experience != null ? String(me.years_experience) : "");
+    if (me.role && TITLES.includes(me.role)) {
+      setETitleChoice(me.role);
+      setEOtherTitle("");
+    } else if (me.role) {
+      setETitleChoice("Other (specify)");
+      setEOtherTitle(me.role);
+    } else {
+      setETitleChoice("");
+      setEOtherTitle("");
+    }
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!me) return;
+    const resolvedRole = eTitleChoice === "Other (specify)" ? eOtherTitle.trim() : eTitleChoice;
+    setSavingEdit(true);
+    const { error } = await supabase.from("members").update({
+      bio: eBio || null,
+      role: resolvedRole || null,
+      years_experience: eYears ? parseInt(eYears) : null,
+    }).eq("id", me.id);
+    if (!error) {
+      setMe({ ...me, bio: eBio || null, role: resolvedRole || null, years_experience: eYears ? parseInt(eYears) : null } as any);
+      setEditing(false);
+    }
+    setSavingEdit(false);
+  }
 
   useEffect(() => {
     async function load() {
@@ -138,6 +178,58 @@ export default function ProfilePage() {
             </button>
           </div>
           {slotError && <p style={{ color: "#e53e3e", fontSize: 12, margin: "8px 0 0" }}>{slotError}</p>}
+        </div>
+
+        {/* Editable about */}
+        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14, marginBottom: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>About</p>
+            {!editing && (
+              <button onClick={openEdit} style={{ background: "none", border: "none", color: "#1F2937", fontSize: 13, fontWeight: 600, cursor: "pointer", padding: 0 }}>Edit</button>
+            )}
+          </div>
+
+          {!editing ? (
+            <div style={{ fontSize: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+                <span style={{ color: "#999" }}>Title</span>
+                <span style={{ color: "#111", textAlign: "right" }}>{me.role || "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f5f5f5" }}>
+                <span style={{ color: "#999" }}>Experience</span>
+                <span style={{ color: "#111", textAlign: "right" }}>{me.years_experience != null ? `${me.years_experience} years` : "—"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+                <span style={{ color: "#999" }}>Bio</span>
+                <span style={{ color: "#111", textAlign: "right", maxWidth: "65%" }}>{me.bio || "—"}</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Title</label>
+              <select value={eTitleChoice} onChange={e => setETitleChoice(e.target.value)}
+                style={{ width: "100%", padding: 11, border: "1px solid #ddd", borderRadius: 8, fontSize: 14, marginBottom: 10, background: "#fff", fontFamily: "inherit" }}>
+                <option value="">Select your title…</option>
+                {TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              {eTitleChoice === "Other (specify)" && (
+                <input value={eOtherTitle} onChange={e => setEOtherTitle(e.target.value)} placeholder="Your title"
+                  style={{ width: "100%", padding: 11, border: "1px solid #ddd", borderRadius: 8, fontSize: 14, marginBottom: 10, boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              )}
+              <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Years of experience</label>
+              <input type="number" value={eYears} onChange={e => setEYears(e.target.value)} placeholder="5"
+                style={{ width: "100%", padding: 11, border: "1px solid #ddd", borderRadius: 8, fontSize: 14, marginBottom: 10, boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              <label style={{ fontSize: 12, color: "#888", marginBottom: 4, display: "block" }}>Short bio</label>
+              <textarea value={eBio} onChange={e => setEBio(e.target.value)} rows={2} maxLength={120}
+                placeholder="e.g. PM at Razorpay, love 0 to 1 products"
+                style={{ width: "100%", padding: 11, border: "1px solid #ddd", borderRadius: 8, fontSize: 14, marginBottom: 4, resize: "none" as const, boxSizing: "border-box" as const, fontFamily: "inherit" }} />
+              <p style={{ fontSize: 11, color: "#bbb", margin: "0 0 12px" }}>{eBio.length}/120</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setEditing(false)} style={{ flex: 1, padding: 11, background: "transparent", color: "#666", border: "1px solid #ddd", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>Cancel</button>
+                <button onClick={saveEdit} disabled={savingEdit} style={{ flex: 1, padding: 11, background: "#1F2937", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{savingEdit ? "Saving…" : "Save"}</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Details */}

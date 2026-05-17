@@ -3,39 +3,10 @@ export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { TITLES } from "@/lib/titles";
 
 const inp = { width: "100%", padding: "12px", border: "1px solid #ddd", borderRadius: "8px", fontSize: "14px", marginBottom: "12px", display: "block" as const, boxSizing: "border-box" as const, fontFamily: "inherit" };
 
-const TITLES = [
-  "Product Manager",
-  "Associate Product Manager",
-  "Senior Product Manager",
-  "Group Product Manager",
-  "Principal Product Manager",
-  "Director of Product",
-  "VP Product",
-  "Chief Product Officer",
-  "Product Owner",
-  "Technical Product Manager",
-  "Growth Product Manager",
-  "Platform Product Manager",
-  "Data Product Manager",
-  "AI/ML Product Manager",
-  "Product Analyst",
-  "Product Marketing Manager",
-  "Product Designer",
-  "Product Operations",
-  "Program Manager",
-  "Technical Program Manager",
-  "Project Manager",
-  "Senior Project Manager",
-  "Project Coordinator",
-  "Scrum Master",
-  "Agile Coach",
-  "Delivery Manager",
-  "Business Analyst",
-  "Other (specify)",
-];
 
 export default function CompleteProfile() {
   const router = useRouter();

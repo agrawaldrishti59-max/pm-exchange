@@ -167,7 +167,7 @@ export default function ExplorePage() {
               )}
 
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/members/${m.id}`} style={{ flex: 1, textAlign: "center", padding: "10px", background: "#4F46E5", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+                <Link href={`/members/${m.id}`} style={{ flex: 1, textAlign: "center", padding: "10px", background: "#1F2937", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
                   View & book
                 </Link>
                 <a href={linkedinHref} target="_blank" rel="noopener noreferrer"

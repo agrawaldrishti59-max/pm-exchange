@@ -8,7 +8,7 @@ import BottomNav from "@/components/BottomNav";
 
 type Session = { id: string; status: string; meet_link: string | null; note: string | null; created_at: string; slot_id: string | null; booker: any; host: any; };
 
-const BRAND = "#4F46E5";
+const BRAND = "#1F2937";
 
 function formatSlot(dt: string) {
   return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });

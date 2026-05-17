@@ -151,7 +151,7 @@ export default function MemberPage() {
                 <textarea style={{ width: "100%", padding: 12, border: "1px solid #ddd", borderRadius: 8, fontSize: 13, resize: "none" as const, marginBottom: 12, boxSizing: "border-box" as const, fontFamily: "inherit" }} rows={2}
                   placeholder={`Message to ${member.name?.split(" ")[0]} (optional)`} value={note} onChange={e => setNote(e.target.value)} />
                 {error && <p style={{ color: "red", fontSize: 13, marginBottom: 8 }}>{error}</p>}
-                <button style={{ width: "100%", padding: 13, background: !selectedSlot || (me?.credits ?? 0) < 1 ? "#ccc" : "#4F46E5", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: !selectedSlot || (me?.credits ?? 0) < 1 ? "not-allowed" : "pointer" }}
+                <button style={{ width: "100%", padding: 13, background: !selectedSlot || (me?.credits ?? 0) < 1 ? "#ccc" : "#1F2937", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: !selectedSlot || (me?.credits ?? 0) < 1 ? "not-allowed" : "pointer" }}
                   onClick={handleBook} disabled={booking || !selectedSlot || (me?.credits ?? 0) < 1}>
                   {booking ? "Sending request…" : !selectedSlot ? "Select a slot first" : "Send request"}
                 </button>
@@ -174,7 +174,7 @@ export default function MemberPage() {
               <strong>{member.name}</strong> has been notified. Once they accept, <strong>1 credit</strong> is used and you both get a Google Meet link.
             </p>
             <button onClick={() => router.push("/explore")}
-              style={{ width: "100%", padding: 12, background: "#4F46E5", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
+              style={{ width: "100%", padding: 12, background: "#1F2937", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
               Back to explore
             </button>
           </div>
