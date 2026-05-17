@@ -1,10 +1,13 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { Suspense } from "react";
 
-export default function AuthCallbackPage() {
+function CallbackInner() {
   const router = useRouter();
+  const params = useSearchParams();
   const [msg, setMsg] = useState("Signing you in…");
 
   useEffect(() => {
@@ -27,34 +30,80 @@ export default function AuthCallbackPage() {
       router.replace("/explore");
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "SIGNED_IN" && session && !done) {
-        subscription.unsubscribe();
+    async function start() {
+      const token_hash = params.get("token_hash");
+      const type = params.get("type");
+
+      // Magic link: explicitly verify the token to create a session
+      if (token_hash && type) {
+        setMsg("Verifying your link…");
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: type as any,
+        });
+        if (error || !data.session) {
+          setMsg("This link expired or was already used. Redirecting…");
+          setTimeout(() => router.replace("/join"), 2500);
+          return;
+        }
         await redirect(
-          session.user.email!,
-          session.user.user_metadata?.full_name || "",
-          session.user.user_metadata?.avatar_url || ""
+          data.session.user.email!,
+          data.session.user.user_metadata?.full_name || "",
+          data.session.user.user_metadata?.avatar_url || ""
         );
+        return;
       }
-    });
 
-    timer = setTimeout(() => {
-      if (!done) {
-        setMsg("Taking too long — try again");
-        setTimeout(() => router.replace("/join"), 2000);
-      }
-    }, 10000);
+      // Google OAuth: wait for SIGNED_IN
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && session && !done) {
+            subscription.unsubscribe();
+            await redirect(
+              session.user.email!,
+              session.user.user_metadata?.full_name || "",
+              session.user.user_metadata?.avatar_url || ""
+            );
+          }
+        }
+      );
 
-    return () => {
-      subscription.unsubscribe();
-      if (timer) clearTimeout(timer);
-    };
-  }, [router]);
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session && !done) {
+          subscription.unsubscribe();
+          redirect(
+            session.user.email!,
+            session.user.user_metadata?.full_name || "",
+            session.user.user_metadata?.avatar_url || ""
+          );
+        }
+      });
+
+      timer = setTimeout(() => {
+        if (!done) {
+          setMsg("Taking too long — try again");
+          setTimeout(() => router.replace("/join"), 2000);
+        }
+      }, 12000);
+    }
+
+    start();
+
+    return () => { if (timer) clearTimeout(timer); };
+  }, [router, params]);
 
   return (
     <div style={{ padding: 40, textAlign: "center" as const, fontFamily: "sans-serif" }}>
       <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
       <p style={{ color: "#666" }}>{msg}</p>
     </div>
+  );
+}
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center" as const }}>Loading…</div>}>
+      <CallbackInner />
+    </Suspense>
   );
 }
