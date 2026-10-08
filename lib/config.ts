@@ -11,4 +11,4 @@
 //           2 credits on approval.
 //
 // To switch later, change this one value and redeploy. Nothing else.
-export const AUTO_APPROVE = true;
+export const AUTO_APPROVE = false;

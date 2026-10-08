@@ -11,8 +11,8 @@ export default function PendingPage() {
     const interval = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase.from("members").select("status, goal").eq("email", session.user.email).maybeSingle();
-      if (data?.status === "approved") {
+      const { data } = await supabase.from("members").select("status, onboarding_completed_at").eq("email", session.user.email).maybeSingle();
+      if (data?.status === "approved" && data.onboarding_completed_at) {
         clearInterval(interval);
         router.replace("/explore");
       }
@@ -26,7 +26,7 @@ export default function PendingPage() {
       <h2>Application under review</h2>
       <p style={{ color: "#666", lineHeight: 1.6, marginTop: 8 }}>
         We're verifying your LinkedIn profile.<br />
-        We'll approve you within 24 hours.<br /><br />
+        Approval follows an admin review; timing may vary.<br /><br />
         You'll start with <strong>2 credits</strong> on approval.<br />
         This page will automatically redirect once approved.
       </p>

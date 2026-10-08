@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Member = { id: string; name: string; email: string; company: string; role: string; linkedin_url: string; credits: number; status: string; bio: string; years_experience: number; };
+type Member = { id: string; name: string; email: string; company: string; role: string; linkedin_url: string; credits: number; status: string; bio: string; years_experience: number; onboarding_completed_at: string | null; };
 
 export default function AdminPage() {
   const router = useRouter();
@@ -23,24 +23,28 @@ export default function AdminPage() {
     load();
   }, [router]);
 
-  async function approve(m: Member) {
-    setActing(m.id);
-    await supabase.from("members").update({ status: "approved", credits: 2 }).eq("id", m.id);
-    // Notify member
-    await supabase.from("notifications").insert([{
-      member_id: m.id,
-      title: "You're approved! 🎉",
-      body: "Welcome to PM Exchange! You've been given 2 credits to get started."
-    }]);
-    setMembers(prev => prev.map(x => x.id === m.id ? { ...x, status: "approved", credits: 2 } : x));
-    setActing(null);
+  async function adminAction(action: "approve" | "reject", member: Member) {
+    setActing(member.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Please sign in again");
+      const response = await fetch("/api/admin/membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ action, memberId: member.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Request failed");
+      setMembers(prev => prev.map(m => m.id === member.id ? { ...m, status: result.status, credits: result.credits } : m));
+    } catch (e: any) { alert(e.message); } finally { setActing(null); }
   }
-
+  async function approve(m: Member) {
+    if (!m.onboarding_completed_at) return;
+    await adminAction("approve", m);
+  }
   async function reject(id: string) {
-    setActing(id);
-    await supabase.from("members").update({ status: "rejected" }).eq("id", id);
-    setMembers(prev => prev.map(x => x.id === id ? { ...x, status: "rejected" } : x));
-    setActing(null);
+    const member = members.find(m => m.id === id);
+    if (member) await adminAction("reject", member);
   }
 
   async function adjustCredits(id: string, delta: number) {
@@ -80,6 +84,7 @@ export default function AdminPage() {
                 <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{m.name}</p>
                 <p style={{ fontSize: 12, color: "#888", margin: "2px 0" }}>{[m.role, m.company].filter(Boolean).join(" @ ")}{m.years_experience ? ` · ${m.years_experience}y` : ""}</p>
                 <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{m.email}</p>
+                {!m.onboarding_completed_at && <p style={{ fontSize: 12, color: "#a16207" }}>Onboarding incomplete — approval disabled</p>}
                 {m.bio && <p style={{ fontSize: 12, color: "#666", margin: "4px 0 0", fontStyle: "italic" }}>"{m.bio}"</p>}
               </div>
               <span style={{ background: "#FAEEDA", color: "#633806", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>🪙 {m.credits}</span>
@@ -88,7 +93,7 @@ export default function AdminPage() {
             {tab === "pending" && (
               <div style={{ display: "flex", gap: 8 }}>
                 <button style={{ flex: 1, padding: "9px", background: "#111", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                  onClick={() => approve(m)} disabled={acting === m.id}>{acting === m.id ? "…" : "✓ Approve"}</button>
+                  onClick={() => approve(m)} disabled={acting === m.id || !m.onboarding_completed_at}>{acting === m.id ? "…" : "✓ Approve"}</button>
                 <button style={{ flex: 1, padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
                   onClick={() => reject(m.id)} disabled={acting === m.id}>Reject</button>
               </div>

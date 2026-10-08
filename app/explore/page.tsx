@@ -6,7 +6,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import BottomNav from "@/components/BottomNav";
 
-type Member = { id: string; name: string; company: string; role: string; linkedin_url: string; credits: number; email: string; bio: string; years_experience: number; avatar_url: string; status: string; };
+type Member = { id: string; name: string; company: string; role: string; linkedin_url: string; credits: number; email: string; bio: string; years_experience: number; avatar_url: string; status: string; onboarding_completed_at?: string | null; };
 type Slot = { id: string; member_id: string; datetime: string; };
 
 const COLORS = ["#E6F1FB","#E1F5EE","#FAECE7","#EEEDFE","#FBEAF0"];
@@ -46,10 +46,12 @@ export default function ExplorePage() {
       if (!session) { router.replace("/join"); return; }
 
       const [{ data: allMembers }, { data: myData }] = await Promise.all([
-        supabase.from("members").select("*").order("name"),
+        supabase.from("members").select("*").eq("status", "approved").not("onboarding_completed_at", "is", null).order("name"),
         supabase.from("members").select("*").eq("email", session.user.email).maybeSingle(),
       ]);
 
+      if (!myData?.onboarding_completed_at) { router.replace(myData?.linkedin_url ? "/onboarding-goal" : "/complete-profile"); return; }
+      if (myData.status !== "approved") { router.replace("/pending"); return; }
       setMembers(allMembers || []);
       setMe(myData);
 

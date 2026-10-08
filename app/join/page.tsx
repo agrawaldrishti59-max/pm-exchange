@@ -58,14 +58,14 @@ export default function JoinPage() {
       <div style={{ paddingTop: 40, paddingBottom: 28 }}>
         <div style={{ fontSize: 36, marginBottom: 10 }}>⇄</div>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 6px" }}>PM Exchange</h1>
-        <p style={{ color: "#666", margin: 0 }}>Interview practice, give-and-take</p>
+        <p style={{ color: "#666", margin: 0 }}>Practice together. Grow together.</p>
       </div>
 
       <div style={{ marginBottom: 28 }}>
         {[
-          ["🎯", "Practice with real PMs from top companies"],
-          ["🪙", "Start with 2 free credits. Give interviews to earn more"],
-          ["✅", "Verified community — LinkedIn required"],
+          ["🎯", "Practice interviews with fellow PMs across companies"],
+          ["🪙", "Start with 2 free credits. Take interviews to earn more"],
+          ["✅", "LinkedIn profiles reviewed before approval"],
         ].map(([icon, text]) => (
           <div key={text as string} style={{ display: "flex", gap: 10, marginBottom: 8, fontSize: 14, color: "#444" }}>
             <span>{icon}</span><span>{text}</span>

@@ -61,7 +61,7 @@ export default function AddSlots() {
         await supabase.from("slots").insert(rows);
       }
     }
-    router.replace("/explore");
+    router.replace("/pending");
   }
 
   function formatSlot(s: string) {

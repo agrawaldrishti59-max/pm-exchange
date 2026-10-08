@@ -46,11 +46,12 @@ export default function CompleteProfile() {
     try {
       const cleaned = form.linkedin_username.trim().replace(/^.*linkedin\.com\/in\//, "").replace(/\/$/, "");
       const linkedin_url = `https://www.linkedin.com/in/${cleaned}`;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Please sign in again.");
       const res = await fetch("/api/auth/complete-profile", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email, name: form.name, linkedin_url, company: form.company, role: resolvedRole,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ name: form.name, linkedin_url, company: form.company, role: resolvedRole,
           whatsapp: form.whatsapp, bio: form.bio,
           years_experience: form.years_experience ? parseInt(form.years_experience) : null,
         }),
@@ -69,8 +70,8 @@ export default function CompleteProfile() {
     <div style={{ padding: 24, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ paddingTop: 32, paddingBottom: 20 }}>
         <div style={{ fontSize: 28, marginBottom: 8 }}>⇄</div>
-        <h1 style={{ fontSize: 22, margin: "0 0 6px" }}>Complete your profile</h1>
-        <p style={{ color: "#666", margin: 0, fontSize: 14 }}>This helps the community know who you are.</p>
+        <h1 style={{ fontSize: 22, margin: "0 0 6px" }}>Let’s build your PM profile</h1>
+        <p style={{ color: "#666", margin: 0, fontSize: 14 }}>Introduce yourself to fellow PMs so you can practice, learn and connect.</p>
       </div>
       {error && <p style={{ color: "red", fontSize: 13, marginBottom: 12 }}>{error}</p>}
 

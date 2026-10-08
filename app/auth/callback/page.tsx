@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabase";
-import { AUTO_APPROVE } from "@/lib/config";
+
 
 function CallbackInner() {
   const router = useRouter();
@@ -21,20 +21,20 @@ function CallbackInner() {
       setMsg("Checking your profile…");
       try {
         const { data: member, error } = await supabase
-          .from("members").select("status, linkedin_url, goal").eq("email", email).maybeSingle();
+          .from("members").select("status, linkedin_url, goal, interests, onboarding_completed_at").eq("email", email).maybeSingle();
         if (error) throw error;
         if (!member) {
           await supabase.from("members").insert([{
             email, name, avatar_url,
-            status: AUTO_APPROVE ? "approved" : "pending",
-            credits: AUTO_APPROVE ? 2 : 0,
+            status: "pending",
+            credits: 0,
           }]);
           router.replace("/complete-profile");
           return;
         }
         if (!member.linkedin_url) { router.replace("/complete-profile"); return; }
-        if (!member.goal) { router.replace("/onboarding-goal"); return; }
-        router.replace("/explore");
+        if (!member.onboarding_completed_at) { router.replace("/onboarding-goal"); return; }
+        router.replace(member.status === "approved" ? "/explore" : "/pending");
       } catch (e) {
         setMsg("Could not load your profile. Redirecting…");
         setTimeout(() => router.replace("/complete-profile"), 1500);
