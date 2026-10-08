@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       if (!member?.name || !member.linkedin_url || !member.role)
         return NextResponse.json({ error: "Complete your profile first" }, { status: 400 });
       const { error } = await admin.from("members").update({
-        interests: [...new Set(interests)], goal: interests[0], onboarding_completed_at: new Date().toISOString(),
+       interests: Array.from(new Set(interests)), goal: interests[0], onboarding_completed_at: new Date().toISOString(),
       }).eq("email", user.email);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     }
