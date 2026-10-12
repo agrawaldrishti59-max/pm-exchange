@@ -19,7 +19,7 @@ function initials(name: string) {
   return (name || "?").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 function formatSlot(dt: string) {
-  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 }
 
 const EXP_FILTERS = [
@@ -125,11 +125,11 @@ export default function ExplorePage() {
         </div>
         <input style={{ width: "100%", padding: "10px 12px", border: "1px solid #ddd", borderRadius: 8, fontSize: 13, boxSizing: "border-box" as const, fontFamily: "inherit", marginBottom: 10 }}
           placeholder="Search by name, company, role…" value={search} onChange={e => setSearch(e.target.value)} />
+        <button type="button" aria-pressed={onlyFreeSlots} onClick={() => setOnlyFreeSlots(v => !v)} style={{ ...pillStyle(onlyFreeSlots), marginBottom: 10, display: "block", padding: "9px 14px" }}>📅 Has available slots {onlyFreeSlots ? "✓" : ""}</button>
         <div style={{ display: "flex", gap: 6, overflowX: "auto" as const, paddingBottom: 4 }}>
           {EXP_FILTERS.map(f => (
             <button key={f.id} onClick={() => setExpFilter(f.id)} style={pillStyle(expFilter === f.id)}>{f.label}</button>
           ))}
-          <button onClick={() => setOnlyFreeSlots(v => !v)} style={pillStyle(onlyFreeSlots)}>📅 Has free slots</button>
         </div>
       </div>
 

@@ -11,7 +11,7 @@ type Session = { id: string; status: string; meet_link: string | null; note: str
 const BRAND = "#1F2937";
 
 function formatSlot(dt: string) {
-  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 }
 function waLink(num: string) {
   const clean = (num || "").replace(/[^0-9]/g, "");
@@ -161,7 +161,7 @@ function SessionsInner() {
 
   const statusLabel: Record<string, { bg: string; color: string; text: string }> = {
     pending: { bg: "#FAEEDA", color: "#633806", text: "Pending" },
-    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Accepted" },
+    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Confirmed" },
     completed: { bg: "#EAF3DE", color: "#3B6D11", text: "Done" },
     cancelled: { bg: "#f5f5f5", color: "#999", text: "Cancelled" },
   };
@@ -179,81 +179,86 @@ function SessionsInner() {
     const wa = waLink(other?.whatsapp);
     const linkedin = other?.linkedin_url ? (other.linkedin_url.startsWith("http") ? other.linkedin_url : `https://${other.linkedin_url}`) : null;
     const canMarkDone = slotPassed(s);
-
     const badge = iAmHost
-      ? (s.status === "completed" ? "Taken" : s.status === "accepted" ? "Taking" : s.status === "cancelled" ? "Cancelled" : "Take interview")
-      : (s.status === "completed" ? "Got" : sl.text);
+      ? (s.status === "completed" ? "Conducted" : s.status === "accepted" ? "Confirmed" : s.status === "cancelled" ? "Cancelled" : "Interview request")
+      : (s.status === "completed" ? "Completed" : sl.text);
+    const initials = (other?.name || "?").split(" ").filter(Boolean).slice(0, 2).map((part: string) => part[0]).join("").toUpperCase();
+
+    const secondaryAction = {
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      padding: "9px 13px", background: "#fff", color: "#374151",
+      border: "1px solid #E5E7EB", borderRadius: 9, fontSize: 12,
+      fontWeight: 600 as const, textDecoration: "none", minHeight: 38
+    };
 
     return (
-      <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14, marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <div>
-            <p style={{ fontWeight: 500, fontSize: 14, margin: 0 }}>{other?.name}</p>
-            <p style={{ fontSize: 12, color: "#888", margin: "2px 0 0" }}>{[other?.role, other?.company].filter(Boolean).join(" @ ")}</p>
+      <article style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, padding: 18, marginBottom: 12, boxShadow: "0 2px 10px rgba(17,24,39,0.03)" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+            <div aria-hidden="true" style={{ width: 42, height: 42, flexShrink: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", background: "#E9EEF5", color: "#344054", fontWeight: 700, fontSize: 13 }}>{initials}</div>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontWeight: 650, fontSize: 15, margin: 0, color: "#111827" }}>{other?.name}</p>
+              <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", lineHeight: 1.45 }}>{[other?.role, other?.company].filter(Boolean).join(" @ ")}</p>
+            </div>
           </div>
-          <span style={{ fontSize: 11, fontWeight: 500, padding: "3px 8px", borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0, marginLeft: 8 }}>{badge}</span>
-        </div>
-        {slotTime && <p style={{ fontSize: 12, color: "#666", margin: "0 0 8px", display: "flex", alignItems: "center", gap: 4 }}>📅 {slotTime}</p>}
-        {s.note && <p style={{ fontSize: 12, color: "#888", background: "#f9f9f9", borderRadius: 6, padding: "6px 8px", marginBottom: 8 }}>"{s.note}"</p>}
-
-        <div style={{ fontSize: 12, color: "#666", marginBottom: 10 }}>
-          {other?.email && <p style={{ margin: "2px 0" }}>✉️ {other.email}</p>}
+          <span style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 99, background: sl.bg, color: sl.color, flexShrink: 0 }}>{badge}</span>
         </div>
 
-        {(s.status === "accepted") && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
-            {s.meet_link && (
+        <div style={{ marginTop: 16, padding: "13px 14px", background: "#F8FAFC", border: "1px solid #F1F5F9", borderRadius: 10 }}>
+          <p style={{ color: "#334155", fontWeight: 600, fontSize: 13, margin: 0 }}>{slotTime ? `📅 ${slotTime}` : "Session time not available"}</p>
+          <p style={{ fontSize: 12, color: "#64748B", margin: "5px 0 0" }}>PM mock interview · 45 minutes · Video call</p>
+        </div>
+        {s.note && <p style={{ fontSize: 12, color: "#475569", background: "#F8FAFC", borderRadius: 8, padding: "9px 11px", margin: "10px 0 0", lineHeight: 1.5 }}>Note: {s.note}</p>}
+
+        {s.status === "accepted" && (
+          <div style={{ marginTop: 14 }}>
+            {s.meet_link ? (
               <a href={s.meet_link} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", textAlign: "center", padding: "10px", background: "#0F6E56", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                Join Google Meet
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 44, padding: "10px 14px", background: BRAND, color: "#fff", borderRadius: 10, fontSize: 13, fontWeight: 650, textDecoration: "none" }}>
+                Join Google Meet ↗
               </a>
-            )}
-            {wa && (
-              <a href={wa} target="_blank" rel="noopener noreferrer"
-                style={{ display: "block", textAlign: "center", padding: "10px", background: "#25D366", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-                Message on WhatsApp
-              </a>
+            ) : (
+              <p style={{ color: "#64748B", fontSize: 12, lineHeight: 1.5, margin: 0 }}>A meeting link is not available yet. Use the contact options below to coordinate.</p>
             )}
           </div>
         )}
 
-        {linkedin && (
-          <a href={linkedin} target="_blank" rel="noopener noreferrer"
-            style={{ display: "block", textAlign: "center", padding: "8px", background: "#0A66C2", color: "#fff", borderRadius: 8, fontSize: 12, fontWeight: 600, textDecoration: "none", marginBottom: 10 }}>
-            View LinkedIn
-          </a>
+        {(wa || linkedin || other?.email) && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+            {wa && <a href={wa} target="_blank" rel="noopener noreferrer" style={secondaryAction}>WhatsApp ↗</a>}
+            {linkedin && <a href={linkedin} target="_blank" rel="noopener noreferrer" style={secondaryAction}>LinkedIn ↗</a>}
+            {other?.email && <a href={`mailto:${other.email}`} style={secondaryAction}>Email ↗</a>}
+          </div>
         )}
 
         {s.status === "pending" && iAmHost && (
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            <button style={{ flex: 1, padding: "9px", background: BRAND, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-              onClick={() => acceptSession(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Accept"}</button>
-            <button style={{ flex: 1, padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+          <div style={{ display: "flex", gap: 8, marginTop: 16, paddingTop: 14, borderTop: "1px solid #F1F5F9" }}>
+            <button style={{ flex: 1, padding: 11, background: BRAND, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              onClick={() => acceptSession(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Accept request"}</button>
+            <button style={{ flex: 1, padding: 11, background: "#fff", color: "#475569", border: "1px solid #E5E7EB", borderRadius: 9, fontSize: 13, cursor: "pointer" }}
               onClick={() => declineSession(s)} disabled={acting === s.id}>Decline</button>
           </div>
         )}
-
         {s.status === "pending" && !iAmHost && (
-          <button style={{ width: "100%", padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer", marginTop: 4 }}
-            onClick={() => retractRequest(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Withdraw request"}</button>
-        )}
-
-        {s.status === "accepted" && (
-          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-            {iAmHost && (
-              <button
-                style={{ flex: 1, padding: "9px", background: canMarkDone ? BRAND : "#ccc", color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: canMarkDone ? "pointer" : "not-allowed" }}
-                onClick={() => canMarkDone && markComplete(s)} disabled={acting === s.id || !canMarkDone}>
-                {acting === s.id ? "…" : canMarkDone ? "Mark done · +1 credit" : "Mark done after slot"}
-              </button>
-            )}
-            <button style={{ flex: iAmHost ? 1 : undefined, width: iAmHost ? undefined : "100%", padding: "9px", background: "transparent", color: "#e53e3e", border: "1px solid #fed7d7", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
-              onClick={() => cancelAccepted(s)} disabled={acting === s.id}>Cancel session</button>
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #F1F5F9" }}>
+            <button style={{ padding: "8px 0", background: "transparent", color: "#64748B", border: "none", fontSize: 12, cursor: "pointer" }}
+              onClick={() => retractRequest(s)} disabled={acting === s.id}>{acting === s.id ? "…" : "Withdraw request"}</button>
           </div>
         )}
-
-        {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#3B6D11", textAlign: "center", fontWeight: 500, marginTop: 8 }}>+1 credit earned</p>}
-      </div>
+        {s.status === "accepted" && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginTop: 16, paddingTop: 13, borderTop: "1px solid #F1F5F9" }}>
+            {iAmHost ? (
+              <button onClick={() => canMarkDone && markComplete(s)} disabled={acting === s.id || !canMarkDone}
+                style={{ padding: "9px 12px", background: canMarkDone ? "#EEF2F7" : "#F3F4F6", color: canMarkDone ? "#334155" : "#9CA3AF", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: canMarkDone ? "pointer" : "not-allowed" }}>
+                {acting === s.id ? "…" : canMarkDone ? "Mark completed · +1 credit" : "Complete after scheduled time"}
+              </button>
+            ) : null}
+            <button onClick={() => cancelAccepted(s)} disabled={acting === s.id}
+              style={{ padding: "8px 0", marginLeft: "auto", background: "transparent", border: "none", color: "#B45353", fontSize: 12, cursor: "pointer" }}>Cancel session</button>
+          </div>
+        )}
+        {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#0F6E56", fontWeight: 600, margin: "12px 0 0" }}>✓ 1 credit earned</p>}
+      </article>
     );
   }
 
@@ -271,7 +276,7 @@ function SessionsInner() {
         <div style={{ display: "flex", gap: 6 }}>
           {(["upcoming", "give"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", background: tab === t ? BRAND : "#f0f0f0", color: tab === t ? "#fff" : "#666" }}>
-              {t === "upcoming" ? "My bookings" : `Take interview${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
+              {t === "upcoming" ? "My bookings" : `Conduct interviews${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
             </button>
           ))}
         </div>
