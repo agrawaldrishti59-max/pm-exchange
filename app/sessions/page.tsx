@@ -161,7 +161,7 @@ function SessionsInner() {
 
   const statusLabel: Record<string, { bg: string; color: string; text: string }> = {
     pending: { bg: "#FAEEDA", color: "#633806", text: "Pending" },
-    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Accepted" },
+    accepted: { bg: "#E1F5EE", color: "#0F6E56", text: "Confirmed" },
     completed: { bg: "#EAF3DE", color: "#3B6D11", text: "Done" },
     cancelled: { bg: "#f5f5f5", color: "#999", text: "Cancelled" },
   };
@@ -252,9 +252,9 @@ function SessionsInner() {
                 style={{ padding: "9px 12px", background: canMarkDone ? "#EEF2F7" : "#F3F4F6", color: canMarkDone ? "#334155" : "#9CA3AF", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: canMarkDone ? "pointer" : "not-allowed" }}>
                 {acting === s.id ? "…" : canMarkDone ? "Mark completed · +1 credit" : "Complete after scheduled time"}
               </button>
-            ) : <span style={{ fontSize: 12, color: "#64748B" }}>Your session is confirmed</span>}
+            ) : null}
             <button onClick={() => cancelAccepted(s)} disabled={acting === s.id}
-              style={{ padding: "8px 0", background: "transparent", border: "none", color: "#B45353", fontSize: 12, cursor: "pointer" }}>Cancel session</button>
+              style={{ padding: "8px 0", marginLeft: "auto", background: "transparent", border: "none", color: "#B45353", fontSize: 12, cursor: "pointer" }}>Cancel session</button>
           </div>
         )}
         {s.status === "completed" && iAmHost && <p style={{ fontSize: 12, color: "#0F6E56", fontWeight: 600, margin: "12px 0 0" }}>✓ 1 credit earned</p>}
