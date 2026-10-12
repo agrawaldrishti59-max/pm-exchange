@@ -11,7 +11,7 @@ type Session = { id: string; status: string; meet_link: string | null; note: str
 const BRAND = "#1F2937";
 
 function formatSlot(dt: string) {
-  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return new Date(dt).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 }
 function waLink(num: string) {
   const clean = (num || "").replace(/[^0-9]/g, "");
@@ -181,7 +181,7 @@ function SessionsInner() {
     const canMarkDone = slotPassed(s);
 
     const badge = iAmHost
-      ? (s.status === "completed" ? "Taken" : s.status === "accepted" ? "Taking" : s.status === "cancelled" ? "Cancelled" : "Take interview")
+      ? (s.status === "completed" ? "Conducted" : s.status === "accepted" ? "Confirmed" : s.status === "cancelled" ? "Cancelled" : "Interview request")
       : (s.status === "completed" ? "Got" : sl.text);
 
     return (
@@ -271,7 +271,7 @@ function SessionsInner() {
         <div style={{ display: "flex", gap: 6 }}>
           {(["upcoming", "give"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 500, cursor: "pointer", border: "none", background: tab === t ? BRAND : "#f0f0f0", color: tab === t ? "#fff" : "#666" }}>
-              {t === "upcoming" ? "My bookings" : `Take interview${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
+              {t === "upcoming" ? "My bookings" : `Conduct interviews${giveRequests.filter(s => s.status === "pending").length ? ` (${giveRequests.filter(s => s.status === "pending").length})` : ""}`}
             </button>
           ))}
         </div>
