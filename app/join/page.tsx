@@ -64,7 +64,7 @@ export default function JoinPage() {
       <div style={{ marginBottom: 28 }}>
         {[
           ["🎯", "Practice interviews with fellow PMs across companies"],
-          ["🪙", "Start with 2 free credits. Take interviews to earn more"],
+          ["🪙", "Start with 2 free credits. Conduct mock interviews to earn more"],
           ["✅", "LinkedIn profiles reviewed before approval"],
         ].map(([icon, text]) => (
           <div key={text as string} style={{ display: "flex", gap: 10, marginBottom: 8, fontSize: 14, color: "#444" }}>
