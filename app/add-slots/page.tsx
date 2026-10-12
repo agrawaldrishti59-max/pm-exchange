@@ -65,7 +65,7 @@ export default function AddSlots() {
   }
 
   function formatSlot(s: string) {
-    return new Date(s).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return new Date(s).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
   }
 
   const minDate = new Date();
@@ -76,7 +76,7 @@ export default function AddSlots() {
     <div style={{ padding: 24, maxWidth: 420, margin: "0 auto" }}>
       <div style={{ paddingTop: 32, paddingBottom: 20 }}>
         <h1 style={{ fontSize: 22, margin: "0 0 8px" }}>Add your free slots</h1>
-        <p style={{ color: "#666", margin: 0, fontSize: 14 }}>Others will be able to book these times with you.</p>
+        <p style={{ color: "#666", margin: 0, fontSize: 14 }}>Others can request a 45-minute PM mock interview at these times. A meeting link is arranged after you accept.</p>
       </div>
 
       <div style={{ background: "#f9f9f9", borderRadius: 12, padding: 16, marginBottom: 20 }}>
