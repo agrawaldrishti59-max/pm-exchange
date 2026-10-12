@@ -9,7 +9,7 @@ type Member = { id: string; name: string; company: string; role: string; linkedi
 type Slot = { id: string; datetime: string; is_booked: boolean; };
 
 function formatSlot(dt: string) {
-  return new Date(dt).toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(dt).toLocaleString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" });
 }
 
 const COLORS = ["#E6F1FB","#E1F5EE","#FAECE7","#EEEDFE","#FBEAF0"];
@@ -62,7 +62,7 @@ export default function MemberPage() {
   async function handleBook() {
     if (!me || !member || !selectedSlot) return;
     if (me.status !== "approved") { setError("Your profile needs to be approved before booking."); return; }
-    if (me.credits < 1) { setError("Not enough credits. Give an interview to earn more."); return; }
+    if (me.credits < 1) { setError("Not enough credits. Conduct a mock interview to earn more."); return; }
     if (hasActiveSession) { setError("You already have an active session with this person. Complete it first."); return; }
 
     setBooking(true); setError("");
@@ -113,22 +113,27 @@ export default function MemberPage() {
 
         <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14, marginBottom: 12 }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Available slots</p>
+          <div style={{ fontSize: 12, color: "#555", lineHeight: 1.7, marginBottom: 12 }}>
+            <strong>PM mock interview · 45 minutes · video call</strong><br />
+            Times are shown in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).<br />
+            This is a request, not an instant confirmation. Once your interviewer accepts, the joining details will appear under Sessions. If a Google Meet link cannot be generated, coordinate with your interviewer using the contact details there.
+          </div>
           {slots.length === 0 ? (
-            <p style={{ fontSize: 13, color: "#ccc" }}>No slots available right now</p>
+            <div style={{ padding: "12px 4px", fontSize: 13, color: "#666", lineHeight: 1.6 }}><strong>No available slots right now.</strong><p style={{ margin: "6px 0 10px" }}>This interviewer has not listed any upcoming times. You can explore other interviewers with availability.</p><button type="button" onClick={() => router.push("/explore")} style={{ padding: "10px 14px", background: "#1F2937", border: "none", borderRadius: 8, color: "#fff", fontWeight: 600, cursor: "pointer" }}>Explore interviewers</button></div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {slots.map(s => (
-                <div key={s.id} onClick={() => !isMe && setSelectedSlot(s.id)}
-                  style={{ padding: "10px 14px", border: `1.5px solid ${selectedSlot === s.id ? "#111" : "#eee"}`, borderRadius: 8, cursor: isMe ? "default" : "pointer", background: selectedSlot === s.id ? "#f9f9f9" : "#fff", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <button key={s.id} type="button" disabled={isMe} aria-pressed={selectedSlot === s.id} onClick={() => setSelectedSlot(s.id)}
+                  style={{ padding: "10px 14px", border: `1.5px solid ${selectedSlot === s.id ? "#111" : "#eee"}`, borderRadius: 8, cursor: isMe ? "not-allowed" : "pointer", background: selectedSlot === s.id ? "#f9f9f9" : "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", fontFamily: "inherit", textAlign: "left" }}>
                   <span style={{ fontSize: 13, color: "#111" }}>📅 {formatSlot(s.datetime)}</span>
-                  {selectedSlot === s.id && <span style={{ fontSize: 14 }}>✓</span>}
-                </div>
+                  {selectedSlot === s.id && <span aria-hidden="true" style={{ fontSize: 14 }}>✓</span>}
+                </button>
               ))}
             </div>
           )}
         </div>
 
-        {!isMe && (
+        {!isMe && slots.length > 0 && (
           <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 12, padding: 14 }}>
             <p style={{ fontSize: 11, fontWeight: 600, color: "#999", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Request a session</p>
 
@@ -171,7 +176,7 @@ export default function MemberPage() {
             <div style={{ fontSize: 44, marginBottom: 12 }}>✅</div>
             <h2 style={{ fontSize: 18, margin: "0 0 8px" }}>Request sent</h2>
             <p style={{ color: "#666", lineHeight: 1.6, fontSize: 14, margin: "0 0 20px" }}>
-              <strong>{member.name}</strong> has been notified. Once they accept, <strong>1 credit</strong> is used and you both get a Google Meet link.
+              <strong>{member.name}</strong> has been notified. Once they accept, <strong>1 credit</strong> is used. Check Sessions for the meeting link or coordination details.
             </p>
             <button onClick={() => router.push("/explore")}
               style={{ width: "100%", padding: 12, background: "#1F2937", color: "#fff", border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600, cursor: "pointer" }}>
