@@ -2,6 +2,12 @@
 
 These steps are **provider dashboard settings**, not values to commit to GitHub.
 
+## Preview authentication (required before preview test)
+- In Supabase Dashboard > Authentication > URL Configuration > Redirect URLs, add the **exact Vercel preview** callback URL, e.g. `https://YOUR-PREVIEW-URL.vercel.app/auth/callback`. Keep the production callback allowlisted as well.
+- The application OAuth and magic-link endpoints now derive the callback from the current request host, so a preview login can return to preview and production continues to return to production.
+- Verify the exact preview URL is in the allowlist before testing; Supabase may otherwise fall back to the production Site URL.
+- After redeploying the branch, re-open the latest preview deployment and log in. Check the address bar remains on the preview hostname after signing in.
+
 ## Google sign-in (OAuth consent)
 1. In Google Cloud Console, select the OAuth project used by Supabase.
 2. Under Google Auth Platform > Branding, set application name to **PM Exchange**, add a verified support email, logo where appropriate, and your authorized domain.
