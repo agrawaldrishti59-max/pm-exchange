@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 // where the Supabase session (and PKCE verifier, if any) lives in the browser.
 // This route only forwards Google's OAuth redirect to that client page.
 export async function GET(req: NextRequest) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL!;
+  const appUrl = req.nextUrl.origin;
   const code = req.nextUrl.searchParams.get("code");
   const dest = code
     ? `${appUrl}/auth/callback?code=${encodeURIComponent(code)}`
